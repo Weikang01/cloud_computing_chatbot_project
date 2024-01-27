@@ -8,7 +8,7 @@ base_url = 'http://127.0.0.1:10299'
 def test_chat():
     url = f'{base_url}/chat'
     data = {
-        'user_id': 'user123',
+        'user_id': 'yp83tx8S+ZNmf/1csl1vOA==',
         'chat_history': [
             {
                 "sender": "USER",
@@ -26,7 +26,7 @@ def test_chat():
 def test_new_user():
     url = f'{base_url}/new_user'
     data = {
-        'user_id': 'new_user123',
+        'user_id': 'yp83tx8S+ZNmf/1csl1vOA==',
         'personal_data': {
             'major': 'computer science',
             'year': 4,

@@ -1,5 +1,11 @@
 from setuptools import setup, find_packages
 
+
+# create database
+def create_database():
+    pass
+
+
 setup(
     name='COMP-4453 chatbot project',
     version='1.0',
