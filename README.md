@@ -141,18 +141,21 @@ inference server ONLY communicates with API server
       "personal_data": {
           "major": "computer science",
           "year": 4,
+          "how_they_call_bot": "friend",
+          "how_bot_calls_them": "Tom",
+          "pronouns": "he",
           // add more if needed
       }
   }
   ```
-
+  
   response format
-
+  
   ```json
   {
       "status": true,  // true=success, false=fail
       "message": "user added"
   }
   ```
-
+  
   
