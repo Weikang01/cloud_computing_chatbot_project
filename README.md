@@ -100,6 +100,8 @@ inference server ONLY communicates with API server
 
   request body
 
+  there are **TWO** types of request body, the first is the one **without** checking calendar data 
+
   ```json
   {
       "user_id": "yp83tx8S+ZNmf/1csl1vOA==", // encoded user id
@@ -135,19 +137,42 @@ inference server ONLY communicates with API server
 
   request body
 
+  if the model believes that the current message is a general chat, it will return the response:
+  
   ```json
   {
-      "user_id": "yp83tx8S+ZNmf/1csl1vOA==", // encoded user id
-      "personal_data": {
-          "major": "computer science",
-          "year": 4,
-          "how_they_call_bot": "friend",
-          "how_bot_calls_them": "Tom",
-          "pronouns": "he",
-          // add more if needed
-      }
+    "input_classification": "general",
+    "input_message": "John: Haha, that's funny!",
+    "match_score": "80",
+    "model": "gpt-3.5-turbo",
+    "processing_time": 3.212432622909546,
+    "response": "Hello John! I'm glad you found it funny. Is there anything specific you need help with?",
+    "user_id": "yp83tx8S+ZNmf/1csl1vOA=="
+  }
+  
+  ```
+  
+  in this case, API server should return the response["response"] to client as chatbot's output.
+  
+  If the model believes that the current message is asking for "calendar", however it will respond a set of arguments for the API server to fetch Google calendar's API.
+  
+  ```json
+  {
+  	"input_message": "Tom: Give me a calendar event for tomorrow at 10am",
+  	"input_classification": "calendar",
+  	"match_score": "100",
+  	"response": {
+  		"maxResults": "1",
+  		"orderBy": "startTime",
+  		"timeMin": "2024-01-28T10:00:00Z",
+  		"timeMax": "2024-01-28T11:00:00Z"
+  	}
   }
   ```
+  
+  
+  
+  
   
   response format
   
