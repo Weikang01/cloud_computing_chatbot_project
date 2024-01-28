@@ -2,13 +2,12 @@ from gevent import monkey, Greenlet
 import time
 import openai
 import os
-import json
 from dotenv import load_dotenv
 import pymongo
 
 from prompt_factory import PromptFactory
 
-DEBUG = True
+DEBUG = False
 MODEL = "gpt-3.5-turbo"
 
 # Load environment variables from .env file
@@ -22,51 +21,56 @@ class AISDK:
     def __init__(self):
         # Initialize with any required parameters
         openai.api_key = os.getenv("OPENAI_API_KEY")
-        self.client = openai.OpenAI()
+        self.llm_client = openai.OpenAI()
         self.prompt_factory = PromptFactory()
 
         host = os.getenv("MONGO_HOST")
         port = int(os.getenv("MONGO_PORT"))
-        self.client = pymongo.MongoClient(host=host, port=port)
-        self.user_db = self.client["user_db"]
+        self.mongo_client = pymongo.MongoClient(host=host, port=port)
+        self.user_db = self.mongo_client["user_db"]
         self.user_collection = self.user_db["user_collection"]
 
     def close(self):
-        self.client.close()
+        self.mongo_client.close()
 
     def get_user_data(self, user_id):
         return self.user_collection.find_one({"_id": user_id})
 
-    def process_chat_message(self, user_id, chat_history, message, timestamp):
-        # Fetch user data
-        user_data = self.get_user_data(user_id)
-        print("user_data:\n", user_data)
-        system_prompt = self.prompt_factory.get_prompt(user_data["personal_data"], chat_history)
-
+    def process_chat_without_calendar(self, user_id, chat_history, message, timestamp):
         # Start timing
         start_time = time.time()
+        # Fetch user data
+        user_data = self.get_user_data(user_id)
 
-        if DEBUG:
-            print("system_prompt:\n", system_prompt)
-            response = "done"
-        else:
-            response = self.client.chat.completions.create(
-                model=MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message}
-                ],
-                max_tokens=100
-            ).choices[0].message.content
+        if user_data is None:
+            return {"error": "User does not exist"}
 
-        # Return a dictionary with the relevant information
-        return {
-            "user_id": user_id,
-            "response": response,
-            # "response": "done",
-            "processing_time": time.time() - start_time,  # Actual processing time
-            "model": MODEL
-        }
+        classification = self.prompt_factory.get_input_classification_prompt(user_data['personal_data'], chat_history,
+                                                                             message)
+
+        response = self.llm_client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "user", "content": classification}
+            ]
+        ).choices[0].message.content
+        response = self.prompt_factory.clean_json_response(response)
+        response["user_id"] = user_id
+        response["processing_time"] = time.time() - start_time
+        response["model"] = MODEL
+
+        return response
+
+    def process_chat_with_calendar(self, user_id, chat_history, message, timestamp, calendar_response):
+        # Start timing
+        start_time = time.time()
+        # Fetch user data
+        user_data = self.get_user_data(user_id)
+
+        if user_data is None:
+            return {"error": "User does not exist"}
+
+        pass
 
     def add_new_user(self, user_id, personal_data):
         try:
@@ -86,7 +90,12 @@ class AISDK:
             return {"error": "Database unavailable"}
 
     def async_process_chat_message(self, *args, **kwargs):
-        return Greenlet.spawn(self.process_chat_message, *args, **kwargs)
+        if "calendar_response" in kwargs:
+            return Greenlet.spawn(self.process_chat_with_calendar, *args, **kwargs)
+        else:
+            if len(args) == 5:
+                user_id, chat_history, message, timestamp, calendar_response = args
+            return Greenlet.spawn(self.process_chat_without_calendar, *args, **kwargs)
 
     def async_add_new_user(self, *args, **kwargs):
         return Greenlet.spawn(self.add_new_user, *args, **kwargs)

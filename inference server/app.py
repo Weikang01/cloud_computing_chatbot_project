@@ -17,11 +17,15 @@ def chat():
     data = request.json
     user_id = data['user_id']
     chat_history = data['chat_history']
+    calendar_response = data['calendar_response'] if 'calendar_response' in data else None
     message = data['message']
     timestamp = data['timestamp']
 
     # Asynchronous processing of chat message
-    greenlet = sdk.async_process_chat_message(user_id, chat_history, message, timestamp)
+    if calendar_response is None:
+        greenlet = sdk.async_process_chat_message(user_id, chat_history, message, timestamp)
+    else:
+        greenlet = sdk.async_process_chat_message(user_id, chat_history, message, timestamp, calendar_response)
     greenlet.join()  # Wait for the processing to complete
 
     response = greenlet.value
@@ -39,7 +43,7 @@ def new_user():
     greenlet.join()  # Wait for the processing to complete
 
     response = greenlet.value
-    print(response)
+    # print(response)
     return jsonify(response)
 
 
