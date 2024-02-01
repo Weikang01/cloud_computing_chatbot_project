@@ -144,6 +144,88 @@ class PromptFactory:
                                                      how_they_call_bot=bot_name,
                                                      user_data=user_data)
 
+    def _get_calendar_response_prompt(self, calendar_response):
+        """
+        sample calendar_response:
+                'calendar_response': [
+            {
+                "summary": "Astronomy II",
+                "description": "Course:\\r\\nGSCI-2330-WDE\\r\\n\\r\\nTerm:\\r\\n2024W\\r\\n\\r\\nFaculty Info:\\r\\nN/A\\r\\n\\r\\nInstruction Method:\\r\\nWEB\\r\\n\\r\\nNo additional scheduling information available",
+                "location": "N/A",
+                "start": {
+                    "dateTime": "2024-01-08T00:00:00-05:00",
+                    "timeZone": "America/Toronto"
+                },
+                "end": {
+                    "dateTime": "2024-04-10T00:00:00-04:00",
+                    "timeZone": "America/Toronto"
+                },
+            }
+        ]
+        :param calendar_response:
+        :return:
+        """
+        prompt = ''
+
+        for i, event in enumerate(calendar_response):
+            prompt += f"""
+Event {i + 1}:
+Summary: {event['summary']}
+Description: {event['description']}
+Location: {event['location']}
+Start: {event['start']['dateTime']}
+End: {event['end']['dateTime']}
+"""
+        return prompt
+
+    def get_calendar_response_prompt(self, user_data, chat_history, current_message, calendar_response):
+        bot_name = user_data.get("how_they_call_bot", "Bot") if user_data else "Bot"
+        user_data["how_they_call_bot"] = bot_name
+        user_name = user_data.get("how_bot_calls_them", "User") if user_data else "User"
+        user_data["how_bot_calls_them"] = user_name
+
+        user_prompt = self.get_user_prompt(user_data)
+        chat_history = self.get_chat_history_prompt(chat_history, how_bot_calls_them=user_name,
+                                                    how_they_call_bot=bot_name)
+        calendar_response_prompt = self._get_calendar_response_prompt(calendar_response)
+        response_schemas = [
+            ResponseSchema(name="input_message", description="This is the current_message from the user"),
+            ResponseSchema(name="response", description="You should return a response based on the following schema"),
+        ]
+
+        output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
+        format_instructions = output_parser.get_format_instructions()
+
+        template = f"""
+You are a helpful student assistant.
+{user_prompt}
+Here is a conversation between you and me.
+{chat_history}
+
+Wrap your final output with closed and open curly brackets (a JSON object).
+
+RESPONSE FORMAT:
+{{format_instructions}}
+
+INPUT MESSAGE:
+{user_name}: {current_message}
+
+RELATED CALENDAR EVENTS:
+{calendar_response_prompt}
+
+RESPONSE:"""
+
+        prompt = ChatPromptTemplate(
+            messages=[
+                HumanMessagePromptTemplate.from_template(template)
+            ],
+            partial_variables={"format_instructions": format_instructions}
+        )
+
+        return prompt.format_prompt().to_string()
+
+
+
     @staticmethod
     def clean_json_response(response):
         response = response.replace("```json", "").replace("```", "").strip()
@@ -157,7 +239,6 @@ if __name__ == '__main__':
             "message": "Hello AI!",
         }
     ])
-    assert 0, "stop"
 
     res = pf.get_prompt({
         'user_name': 'John',
