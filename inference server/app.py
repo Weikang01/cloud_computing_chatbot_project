@@ -23,9 +23,9 @@ def chat():
 
     # Asynchronous processing of chat message
     if calendar_response is None:
-        greenlet = sdk.async_process_chat_message(user_id, chat_history, message, timestamp)
+        greenlet = sdk.async_process_chat_message_without_calendar(user_id, chat_history, message, timestamp)
     else:
-        greenlet = sdk.async_process_chat_message(user_id, chat_history, message, timestamp, calendar_response)
+        greenlet = sdk.async_process_chat_with_calendar(user_id, chat_history, message, timestamp, calendar_response)
     greenlet.join()  # Wait for the processing to complete
 
     response = greenlet.value

@@ -70,7 +70,21 @@ class AISDK:
         if user_data is None:
             return {"error": "User does not exist"}
 
-        pass
+        prompt = self.prompt_factory.get_calendar_response_prompt(user_data['personal_data'], chat_history, message,
+                                                                  calendar_response)
+
+        response = self.llm_client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        ).choices[0].message.content
+        response = self.prompt_factory.clean_json_response(response)
+        response["user_id"] = user_id
+        response["processing_time"] = time.time() - start_time
+        response["model"] = MODEL
+
+        return response
 
     def add_new_user(self, user_id, personal_data):
         try:
@@ -89,13 +103,11 @@ class AISDK:
         except Exception as e:
             return {"error": "Database unavailable"}
 
-    def async_process_chat_message(self, *args, **kwargs):
-        if "calendar_response" in kwargs:
-            return Greenlet.spawn(self.process_chat_with_calendar, *args, **kwargs)
-        else:
-            if len(args) == 5:
-                user_id, chat_history, message, timestamp, calendar_response = args
-            return Greenlet.spawn(self.process_chat_without_calendar, *args, **kwargs)
+    def async_process_chat_with_calendar(self, *args, **kwargs):
+        return Greenlet.spawn(self.process_chat_with_calendar, *args, **kwargs)
+
+    def async_process_chat_message_without_calendar(self, *args, **kwargs):
+        return Greenlet.spawn(self.process_chat_without_calendar, *args, **kwargs)
 
     def async_add_new_user(self, *args, **kwargs):
         return Greenlet.spawn(self.add_new_user, *args, **kwargs)
