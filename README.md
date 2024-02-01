@@ -131,31 +131,8 @@ inference server ONLY communicates with API server
   }
   ```
 
-  
+  if the model detect that this is a calendar-related question, it will response like this:
 
-* `/new_user` method: **POST**
-
-  request body
-
-  if the model believes that the current message is a general chat, it will return the response:
-  
-  ```json
-  {
-    "input_classification": "general",
-    "input_message": "John: Haha, that's funny!",
-    "match_score": "80",
-    "model": "gpt-3.5-turbo",
-    "processing_time": 3.212432622909546,
-    "response": "Hello John! I'm glad you found it funny. Is there anything specific you need help with?",
-    "user_id": "yp83tx8S+ZNmf/1csl1vOA=="
-  }
-  
-  ```
-  
-  in this case, API server should return the response["response"] to client as chatbot's output.
-  
-  If the model believes that the current message is asking for "calendar", however it will respond a set of arguments for the API server to fetch Google calendar's API.
-  
   ```json
   {
   	"input_message": "Tom: Give me a calendar event for tomorrow at 10am",
@@ -169,18 +146,119 @@ inference server ONLY communicates with API server
   	}
   }
   ```
+
   
-  
-  
-  
-  
-  response format
-  
+
+  the second is the one **with** calendar data
+
+  request format:
+
   ```json
   {
-      "status": true,  // true=success, false=fail
-      "message": "user added"
+      "user_id": "yp83tx8S+ZNmf/1csl1vOA==", // encoded user id
+      "chat_history": [
+          {
+              "sender": "USER",
+              "message": "hello world, AI!",
+              "timestamp": 123134123
+          },
+          {
+              "sender": "BOT",
+              "message": "hello world, user!",
+              "timestamp": 123134123
+          }
+      ],
+      'calendar_response': [
+          {
+              "summary": "Astronomy II",
+              "description": "Course:\\r\\nGSCI-2330-WDE\\r\\n\\r\\nTerm:\\r\\n2024W\\r\\n\\r\\nFaculty Info:\\r\\nN/A\\r\\n\\r\\nInstruction Method:\\r\\nWEB\\r\\n\\r\\nNo additional scheduling information available",
+              "location": "N/A",
+              "start": {
+                  "dateTime": "2024-01-08T00:00:00-05:00",
+                  "timeZone": "America/Toronto"
+              },
+              "end": {
+                  "dateTime": "2024-04-10T00:00:00-04:00",
+                  "timeZone": "America/Toronto"
+              },
+          }
+      ],
+      "message": "how are you doing?",
+      "timestamp": 123134123
   }
   ```
-  
-  
+
+  * `/new_user` method: **POST**
+
+    add new user
+
+    ```json
+    {
+        "user_id": "yp83tx8S+ZNmf/1csl1vOA=="",
+        "personal_data": {
+            "major": "computer science",
+            "year": 4,
+            "how_they_call_bot": "buddy",
+            "how_bot_calls_them": "John",
+            "pronouns": "he"
+        }
+    }
+    ```
+
+    response format
+
+    ```json
+    {
+        "status": true,  // true=success, false=fail
+        "message": "user added"
+    }
+    ```
+
+
+### Sample Google Calendar Event API Format
+
+```json
+{
+    "kind": "calendar#event",
+    "etag": "\"3413481354218000\"",
+    "id": "00223ob3qggd6sbi5etfq8ga64",
+    "status": "confirmed",
+    "htmlLink": "https://www.google.com/calendar/event?eid=MDAyMjNvYjNxZ2dkNnNiaTVldGZxOGdhNjQgd2xpdTI5QGxha2VoZWFkdS5jYQ",
+    "created": "2023-04-13T22:59:45.000Z",
+    "updated": "2024-01-31T22:37:57.109Z",
+    "summary": "Astronomy II",
+    "description": "Course:\\r\\nGSCI-2330-WDE\\r\\n\\r\\nTerm:\\r\\n2024W\\r\\n\\r\\nFaculty Info:\\r\\nN/A\\r\\n\\r\\nInstruction Method:\\r\\nWEB\\r\\n\\r\\nNo additional scheduling information available",
+    "location": "N/A",
+    "creator": {
+        "email": "mailadmin@lakeheadu.ca"
+    },
+    "organizer": {
+        "email": "lakeheadu.ca_9e40dhbtkcf82keahborn25vjk@group.calendar.google.com",
+        "displayName": "GSCI"
+    },
+    "start": {
+        "dateTime": "2024-01-08T00:00:00-05:00",
+        "timeZone": "America/Toronto"
+    },
+    "end": {
+        "dateTime": "2024-04-10T00:00:00-04:00",
+        "timeZone": "America/Toronto"
+    },
+    "iCalUID": "00223ob3qggd6sbi5etfq8ga64@google.com",
+    "sequence": 0,
+    "attendees": [
+        {
+            "email": "wliu29@lakeheadu.ca",
+            "self": true,
+            "responseStatus": "accepted"
+        }
+    ],
+    "guestsCanInviteOthers": false,
+    "guestsCanSeeOtherGuests": false,
+    "reminders": {
+        "useDefault": true
+    },
+    "eventType": "default"
+}
+```
+
