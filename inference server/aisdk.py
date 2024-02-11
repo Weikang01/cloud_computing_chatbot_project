@@ -1,4 +1,5 @@
-from gevent import monkey, Greenlet
+from gevent import monkey, Greenlet, joinall
+monkey.patch_all()
 import time
 import openai
 import os
@@ -6,15 +7,15 @@ from dotenv import load_dotenv
 import pymongo
 
 from prompt_factory import PromptFactory
+from discriminator import Discriminator
+
 
 DEBUG = False
 MODEL = "gpt-3.5-turbo"
+NR_RESPONSES = 3
 
 # Load environment variables from .env file
 load_dotenv()
-
-# Patches standard Python sockets to be non-blocking
-monkey.patch_all()
 
 
 class AISDK:
@@ -30,48 +31,18 @@ class AISDK:
         self.user_db = self.mongo_client["user_db"]
         self.user_collection = self.user_db["user_collection"]
 
+        self.disc = Discriminator()
+
+
     def close(self):
         self.mongo_client.close()
 
     def get_user_data(self, user_id):
         return self.user_collection.find_one({"_id": user_id})
 
-    def process_chat_without_calendar(self, user_id, chat_history, message, timestamp):
+    def request_worker(self, user_id, prompt):
         # Start timing
         start_time = time.time()
-        # Fetch user data
-        user_data = self.get_user_data(user_id)
-
-        if user_data is None:
-            return {"error": "User does not exist"}
-
-        classification = self.prompt_factory.get_input_classification_prompt(user_data['personal_data'], chat_history,
-                                                                             message)
-
-        response = self.llm_client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "user", "content": classification}
-            ]
-        ).choices[0].message.content
-        response = self.prompt_factory.clean_json_response(response)
-        response["user_id"] = user_id
-        response["processing_time"] = time.time() - start_time
-        response["model"] = MODEL
-
-        return response
-
-    def process_chat_with_calendar(self, user_id, chat_history, message, timestamp, calendar_response):
-        # Start timing
-        start_time = time.time()
-        # Fetch user data
-        user_data = self.get_user_data(user_id)
-
-        if user_data is None:
-            return {"error": "User does not exist"}
-
-        prompt = self.prompt_factory.get_calendar_response_prompt(user_data['personal_data'], chat_history, message,
-                                                                  calendar_response)
 
         response = self.llm_client.chat.completions.create(
             model=MODEL,
@@ -79,6 +50,7 @@ class AISDK:
                 {"role": "user", "content": prompt}
             ]
         ).choices[0].message.content
+        # response = "{\"role\": \"bot\", \"content\": \"Hello, there! How may I help you?\"}"    # For testing
         response = self.prompt_factory.clean_json_response(response)
         response["user_id"] = user_id
         response["processing_time"] = time.time() - start_time
@@ -103,11 +75,47 @@ class AISDK:
         except Exception as e:
             return {"error": "Database unavailable"}
 
-    def async_process_chat_with_calendar(self, *args, **kwargs):
-        return Greenlet.spawn(self.process_chat_with_calendar, *args, **kwargs)
+    def async_process_chat_with_calendar(self, user_id, chat_history, message, timestamp, calendar_response, *args,
+                                         **kwargs):
+        # Fetch user data
+        user_data = self.get_user_data(user_id)
 
-    def async_process_chat_message_without_calendar(self, *args, **kwargs):
-        return Greenlet.spawn(self.process_chat_without_calendar, *args, **kwargs)
+        if user_data is None:
+            return {"error": "User does not exist"}
+
+        prompt = self.prompt_factory.get_calendar_response_prompt(user_data['personal_data'], chat_history, message,
+                                                                  calendar_response)
+
+        greenlets = [
+            Greenlet.spawn(self.request_worker, user_id, prompt)
+            for _ in range(NR_RESPONSES)
+        ]
+
+        joinall(greenlets)  # Wait for all greenlets to complete
+
+        responses = [greenlet.value for greenlet in greenlets]
+
+        return self.disc.pick_best_response(message, responses)
+
+    def async_process_chat_message_without_calendar(self, user_id, chat_history, message, timestamp, *args, **kwargs):
+        # Fetch user data
+        user_data = self.get_user_data(user_id)
+
+        if user_data is None:
+            return {"error": "User does not exist"}
+
+        prompt = self.prompt_factory.get_input_classification_prompt(user_data['personal_data'], chat_history, message)
+
+        greenlets = [
+            Greenlet.spawn(self.request_worker, user_id, prompt)
+            for _ in range(NR_RESPONSES)
+        ]
+
+        joinall(greenlets)  # Wait for all greenlets to complete
+
+        responses = [greenlet.value for greenlet in greenlets]
+
+        return self.disc.pick_best_response(message, responses)
 
     def async_add_new_user(self, *args, **kwargs):
         return Greenlet.spawn(self.add_new_user, *args, **kwargs)

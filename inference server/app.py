@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify
-from aisdk import AISDK
 from gevent.pywsgi import WSGIServer
 import os
 from dotenv import load_dotenv
+
+from aisdk import AISDK
 
 # Load environment variables
 load_dotenv()
@@ -23,12 +24,10 @@ def chat():
 
     # Asynchronous processing of chat message
     if calendar_response is None:
-        greenlet = sdk.async_process_chat_message_without_calendar(user_id, chat_history, message, timestamp)
+        response = sdk.async_process_chat_message_without_calendar(user_id, chat_history, message, timestamp)
     else:
-        greenlet = sdk.async_process_chat_with_calendar(user_id, chat_history, message, timestamp, calendar_response)
-    greenlet.join()  # Wait for the processing to complete
+        response = sdk.async_process_chat_with_calendar(user_id, chat_history, message, timestamp, calendar_response)
 
-    response = greenlet.value
     return jsonify(response)
 
 

@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "10299:10299"
+    environment:
+      - SERVER_ADDRESS=0.0.0.0
+      # Ensure your application is configured to use this MongoDB URI
+      - MONGODB_URI=mongodb://mongo:27017/
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MONGO_HOST=mongo
+      - MONGO_PORT=27017
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:latest
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
