@@ -8,7 +8,7 @@ base_url = 'http://127.0.0.1:10299'
 def test_chat_with_calendar():
     url = f'{base_url}/chat'
     data = {
-        'user_id': 'yp83tx8S+ZNmf/1csl1vOA==',
+        'user_id': 'jamesbond',
         'chat_history': [
             {
                 "sender": "Bot",
@@ -60,7 +60,7 @@ def test_chat_no_calendar():
 def test_new_user():
     url = f'{base_url}/new_user'
     data = {
-        'user_id': 'yp83tx8S+ZNmf/1csl1vOA==',
+        'user_id': 'jamesbond',
         'personal_data': {
             'major': 'computer science',
             'year': 4,

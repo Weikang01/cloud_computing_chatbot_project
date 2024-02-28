@@ -1,4 +1,5 @@
 from gevent import monkey, Greenlet, joinall
+
 monkey.patch_all()
 import time
 import openai
@@ -9,10 +10,9 @@ import pymongo
 from prompt_factory import PromptFactory
 from discriminator import Discriminator
 
-
 DEBUG = False
 MODEL = "gpt-3.5-turbo"
-NR_RESPONSES = 3
+NR_RESPONSES = 1
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,14 +25,26 @@ class AISDK:
         self.llm_client = openai.OpenAI()
         self.prompt_factory = PromptFactory()
 
-        host = os.getenv("MONGO_HOST")
-        port = int(os.getenv("MONGO_PORT"))
+        host = os.getenv("MONGO_HOST", "localhost")
+        port = int(os.getenv("MONGO_PORT", 27017))
         self.mongo_client = pymongo.MongoClient(host=host, port=port)
         self.user_db = self.mongo_client["user_db"]
         self.user_collection = self.user_db["user_collection"]
 
         self.disc = Discriminator()
 
+        data = {
+            'user_id': 'jamesbond',
+            'personal_data': {
+                'major': 'computer science',
+                'year': 4,
+                'how_they_call_bot': 'buddy',
+                'how_bot_calls_them': 'John',
+                'pronouns': 'he'
+            }
+        }
+
+        self.add_new_user("jamesbond", data['personal_data'])
 
     def close(self):
         self.mongo_client.close()
@@ -44,18 +56,22 @@ class AISDK:
         # Start timing
         start_time = time.time()
 
-        response = self.llm_client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        ).choices[0].message.content
-        # response = "{\"role\": \"bot\", \"content\": \"Hello, there! How may I help you?\"}"    # For testing
+        if DEBUG:
+            response = "{\"role\": \"bot\", \"content\": \"Hello, there! How may I help you?\"}"  # For testing
+        else:
+            try:
+                response = self.llm_client.chat.completions.create(
+                    model=MODEL,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                ).choices[0].message.content
+            except Exception as e:
+                response = "{\"error\": \"OpenAI API unavailable\"}"
         response = self.prompt_factory.clean_json_response(response)
         response["user_id"] = user_id
         response["processing_time"] = time.time() - start_time
         response["model"] = MODEL
-
         return response
 
     def add_new_user(self, user_id, personal_data):
