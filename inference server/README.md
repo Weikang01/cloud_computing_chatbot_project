@@ -4,10 +4,14 @@
 
 2. run Docker
 
-3. In your terminal, go to root path of `inference server`
+3. Add OpenAI API into your environment variables
+
+   - `OPENAI_API_KEY` : your openai api key
+
+4. In your terminal, go to root path of `inference server`
 
    type `docker-compose up --build`
 
    this command will build the docker image for the server, as well as its dependencies and start running
 
-4. to test the server, run `test_cli.py`
+5. to test the server, run `test_cli.py`

@@ -6,6 +6,7 @@ services:
       - "10299:10299"
     environment:
       - SERVER_ADDRESS=0.0.0.0
+      - SERVER_PORT=10299
       # Ensure your application is configured to use this MongoDB URI
       - MONGODB_URI=mongodb://mongo:27017/
       - OPENAI_API_KEY=${OPENAI_API_KEY}

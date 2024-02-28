@@ -23,7 +23,7 @@ def chat():
     timestamp = data['timestamp']
 
     # Asynchronous processing of chat message
-    if calendar_response is None:
+    if calendar_response is None or len(calendar_response) == 0:
         response = sdk.async_process_chat_message_without_calendar(user_id, chat_history, message, timestamp)
     else:
         response = sdk.async_process_chat_with_calendar(user_id, chat_history, message, timestamp, calendar_response)
