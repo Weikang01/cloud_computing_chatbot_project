@@ -41,3 +41,5 @@ zope.event==5.0
 zope.interface==6.1
 setuptools~=60.2.0
 langchain~=0.1.4
+torch~=2.2.1
+scikit-learn~=1.4.1.post1

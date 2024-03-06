@@ -16,17 +16,23 @@ sdk = AISDK()
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json
+
+    if 'user_id' not in data or 'chat_history' not in data or 'message' not in data or 'timestamp' not in data or 'api_key' not in data:
+        return jsonify({"error": "Invalid request"})
+
     user_id = data['user_id']
     chat_history = data['chat_history']
     calendar_response = data['calendar_response'] if 'calendar_response' in data else None
     message = data['message']
     timestamp = data['timestamp']
+    api_key = data['api_key']
 
     # Asynchronous processing of chat message
     if calendar_response is None or len(calendar_response) == 0:
-        response = sdk.async_process_chat_message_without_calendar(user_id, chat_history, message, timestamp)
+        response = sdk.async_process_chat_message_without_calendar(api_key, user_id, chat_history, message, timestamp)
     else:
-        response = sdk.async_process_chat_with_calendar(user_id, chat_history, message, timestamp, calendar_response)
+        response = sdk.async_process_chat_with_calendar(api_key, user_id, chat_history, message, timestamp,
+                                                        calendar_response)
 
     return jsonify(response)
 
