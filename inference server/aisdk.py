@@ -10,7 +10,8 @@ import pymongo
 from prompt_factory import PromptFactory
 from discriminator import Discriminator
 
-DEBUG = False
+DEBUG = True
+DEBUG_CALENDAR = True
 MODEL = "gpt-3.5-turbo"
 NR_RESPONSES = 1
 
@@ -21,8 +22,6 @@ load_dotenv()
 class AISDK:
     def __init__(self):
         # Initialize with any required parameters
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        self.llm_client = openai.OpenAI()
         self.prompt_factory = PromptFactory()
 
         host = os.getenv("MONGO_HOST", "localhost")
@@ -31,7 +30,7 @@ class AISDK:
         self.user_db = self.mongo_client["user_db"]
         self.user_collection = self.user_db["user_collection"]
 
-        self.disc = Discriminator()
+        self.disc = Discriminator(256)
 
         data = {
             'user_id': 'jamesbond',
@@ -52,15 +51,31 @@ class AISDK:
     def get_user_data(self, user_id):
         return self.user_collection.find_one({"_id": user_id})
 
-    def request_worker(self, user_id, prompt):
+    def request_worker(self, api_key, user_id, prompt):
+        global DEBUG_CALENDAR
         # Start timing
         start_time = time.time()
 
+        openai.api_key = api_key
+        llm_client = None
+        try:
+            llm_client = openai.OpenAI()
+        except Exception as e:
+            return {"error": "API key incorrect or unavailable"}
+        finally:
+            if llm_client is None:
+                return {"error": "API key incorrect or unavailable"}
+
         if DEBUG:
-            response = "{\"role\": \"bot\", \"content\": \"Hello, there! How may I help you?\"}"  # For testing
+            if DEBUG_CALENDAR:
+                response = "{\"maxResults\": \"1\", \"onlyCourse\": \"true\", \"orderBy\": \"startTime\", \"timeMax\": \"\", \"timeMin\": \"2024-03-06T02:15:29.404306Z\"}"
+                DEBUG_CALENDAR = False
+            else:
+                response = "{\"input_message\": \"Hello!\", \"response\": \"Hello, how are you?\"}"  # For testing
+                DEBUG_CALENDAR = True
         else:
             try:
-                response = self.llm_client.chat.completions.create(
+                response = llm_client.chat.completions.create(
                     model=MODEL,
                     messages=[
                         {"role": "user", "content": prompt}
@@ -69,6 +84,7 @@ class AISDK:
             except Exception as e:
                 response = "{\"error\": \"OpenAI API unavailable\"}"
         response = self.prompt_factory.clean_json_response(response)
+
         response["user_id"] = user_id
         response["processing_time"] = time.time() - start_time
         response["model"] = MODEL
@@ -91,7 +107,8 @@ class AISDK:
         except Exception as e:
             return {"error": "Database unavailable"}
 
-    def async_process_chat_with_calendar(self, user_id, chat_history, message, timestamp, calendar_response, *args,
+    def async_process_chat_with_calendar(self, api_key, user_id, chat_history, message, timestamp, calendar_response,
+                                         *args,
                                          **kwargs):
         # Fetch user data
         user_data = self.get_user_data(user_id)
@@ -103,17 +120,17 @@ class AISDK:
                                                                   calendar_response)
 
         greenlets = [
-            Greenlet.spawn(self.request_worker, user_id, prompt)
+            Greenlet.spawn(self.request_worker, api_key, user_id, prompt)
             for _ in range(NR_RESPONSES)
         ]
 
         joinall(greenlets)  # Wait for all greenlets to complete
-
         responses = [greenlet.value for greenlet in greenlets]
 
         return self.disc.pick_best_response(message, responses)
 
-    def async_process_chat_message_without_calendar(self, user_id, chat_history, message, timestamp, *args, **kwargs):
+    def async_process_chat_message_without_calendar(self, api_key, user_id, chat_history, message, timestamp, *args,
+                                                    **kwargs):
         # Fetch user data
         user_data = self.get_user_data(user_id)
 
@@ -123,12 +140,11 @@ class AISDK:
         prompt = self.prompt_factory.get_input_classification_prompt(user_data['personal_data'], chat_history, message)
 
         greenlets = [
-            Greenlet.spawn(self.request_worker, user_id, prompt)
+            Greenlet.spawn(self.request_worker, api_key, user_id, prompt)
             for _ in range(NR_RESPONSES)
         ]
 
         joinall(greenlets)  # Wait for all greenlets to complete
-
         responses = [greenlet.value for greenlet in greenlets]
 
         return self.disc.pick_best_response(message, responses)

@@ -7,7 +7,7 @@ import bodyParser from "body-parser";
 import usersRoutes from "./routes/users.js";
 
 const app = express();
-const PORT = 8000;
+const PORT = 80;
 
 import cors from "cors";
 
@@ -22,9 +22,27 @@ app.use("/", usersRoutes);
 // app.get('/', (req,res) =>
 //     res.send('Hello From HomePage'));
 
+function joinUrl(...parts) {
+  return parts
+    .map((part, index) => {
+      if (part === undefined || part === null) {
+        // Skip undefined or null parts
+        return "";
+      }
+      if (index === 0) {
+        return part.replace(/\/+$/, "");
+      } else {
+        return part.replace(/^\/+/, "").replace(/\/+$/, "");
+      }
+    })
+    .join("/");
+}
+
 app.post("/chat", (req, res) => {
   const { user_id, message } = req.body;
-  console.log(`Received message from ${user_id}: ${message}`);
+  // console.log(
+  //   `Received message from ${user_id}: ${message}\nreq.body.api_key:\n${req.body.api_key}`
+  // );
 
   const response = {
     user_id: user_id, // Echoing back the user_id received from the request
@@ -41,18 +59,25 @@ app.post("/chat", (req, res) => {
       // },
     ],
     message: message,
-    calendar_response: {},
+    calendar_response: req.body.calendar_response,
     timestamp: 1000,
+    api_key: req.body.api_key,
   };
 
   axios
-    .post("http://127.0.0.1:10299/chat", my_req)
+    .post(joinUrl(process.env.INFERENCE_SERVER_URL, "chat"), my_req)
     .then((response) => {
-      console.log(response.data);
-      res.status(200).json({
-        status: "success",
-        data: response.data,
-      });
+      if (response.data.response) {
+        res.status(200).json({
+          status: "success",
+          data: response.data.response,
+        });
+      } else {
+        res.status(200).json({
+          status: "success",
+          data: response.data,
+        });
+      }
     })
     .catch((error) => {
       console.error("Error sending data:", error);
@@ -63,6 +88,6 @@ app.post("/chat", (req, res) => {
     });
 });
 
-app.listen(PORT, () =>
+app.listen(PORT, "0.0.0.0", () =>
   console.log(`Server is running on port: http://localhost:${PORT}`)
 );
