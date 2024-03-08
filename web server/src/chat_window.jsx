@@ -104,16 +104,13 @@ const ChatWindow = (args) => {
           api_key: args.APIKey,
         };
 
-        const response = await fetch(
-          joinUrl(import.meta.env.VITE_API_SERVER_URL, "chat"),
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestBody),
-          }
-        );
+        const response = await fetch(joinUrl(window.API_SERVER_URL, "chat"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
 
         if (response.ok) {
           const data = await response.json();
@@ -213,16 +210,13 @@ const ChatWindow = (args) => {
             api_key: args.APIKey,
           };
 
-          const response = await fetch(
-            joinUrl(import.meta.env.VITE_API_SERVER_URL, "chat"),
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(requestBody),
-            }
-          );
+          const response = await fetch(joinUrl(window.API_SERVER_URL, "chat"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestBody),
+          });
 
           if (response.ok) {
             const data = await response.json();

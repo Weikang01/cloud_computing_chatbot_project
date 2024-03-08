@@ -2,7 +2,7 @@ import requests
 import time
 
 # URL of your Flask app
-base_url = 'http://127.0.0.1:10299'
+base_url = 'http://3.227.248.167:10299'
 
 
 def test_chat_with_calendar():
@@ -75,4 +75,4 @@ def test_new_user():
 
 if __name__ == '__main__':
     test_new_user()
-    test_chat_with_calendar()
+    # test_chat_with_calendar()

@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify
 from gevent.pywsgi import WSGIServer
 import os
 from dotenv import load_dotenv
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 from aisdk import AISDK
 
@@ -11,6 +14,11 @@ load_dotenv()
 app = Flask(__name__)
 
 sdk = AISDK()
+
+
+@app.route('/')
+def test():
+    return "Hello, world from inference server!"
 
 
 @app.route('/chat', methods=['POST'])
@@ -54,10 +62,11 @@ def new_user():
 
 def main():
     # Read server configuration from environment variables
-    server_address = os.getenv('SERVER_ADDRESS', '127.0.0.1')  # Default to 127.0.0.1 if not set
+    server_address = os.getenv('SERVER_ADDRESS', '0.0.0.0')  # Default to 127.0.0.1 if not set
     server_port = int(os.getenv('SERVER_PORT', 10299))  # Default to 10299 if not set
-
     http_server = WSGIServer((server_address, server_port), app)
+
+    logging.info(f"Starting server at {server_address}:{server_port}")
     http_server.serve_forever()
 
 

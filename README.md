@@ -262,3 +262,21 @@ inference server ONLY communicates with API server
 }
 ```
 
+# Setup Elastic Container Service
+
+<img src="./images/image-20240307155630713.png" alt="image-20240307155630713" style="zoom:67%;" />
+
+<img src="./images/image-20240307160024171.png" alt="image-20240307160024171" style="zoom:67%;" />
+
+<img src="./images/image-20240307160112279.png" alt="image-20240307160112279" style="zoom:67%;" />
+
+
+
+
+
+
+
+```bash
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 851725519353.dkr.ecr.us-east-1.amazonaws.com
+```
+

@@ -9,14 +9,18 @@ import pymongo
 
 from prompt_factory import PromptFactory
 from discriminator import Discriminator
+import logging
 
-DEBUG = True
-DEBUG_CALENDAR = True
-MODEL = "gpt-3.5-turbo"
-NR_RESPONSES = 1
 
 # Load environment variables from .env file
 load_dotenv()
+
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't', 'y', 'yes')
+logging.info(f"Current DEBUG status: {DEBUG}")
+
+DEBUG_CALENDAR = True
+MODEL = "gpt-3.5-turbo"
+NR_RESPONSES = 1
 
 
 class AISDK:
