@@ -7,7 +7,7 @@ import bodyParser from "body-parser";
 import usersRoutes from "./routes/users.js";
 
 const app = express();
-const PORT = 80;
+const PORT = 8000;
 
 import cors from "cors";
 
@@ -37,6 +37,10 @@ function joinUrl(...parts) {
     })
     .join("/");
 }
+
+app.get("/", (req, res) => {
+  res.send("Hello World fro API server");
+});
 
 app.post("/chat", (req, res) => {
   const { user_id, message } = req.body;
