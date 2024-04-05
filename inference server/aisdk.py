@@ -2,10 +2,9 @@ from gevent import monkey, Greenlet, joinall
 
 monkey.patch_all()
 import time
-import openai
 import os
 from dotenv import load_dotenv
-import pymongo
+import openai
 
 from prompt_factory import PromptFactory
 from discriminator import Discriminator
@@ -27,22 +26,16 @@ class AISDK:
     def __init__(self):
         # Initialize with any required parameters
         self.prompt_factory = PromptFactory()
-
-        host = os.getenv("MONGO_HOST", "localhost")
-        port = int(os.getenv("MONGO_PORT", 27017))
-        self.mongo_client = pymongo.MongoClient(host=host, port=port)
-        self.user_db = self.mongo_client["user_db"]
-        self.user_collection = self.user_db["user_collection"]
-
         self.disc = Discriminator(256)
+        self.users = {}
 
         data = {
             'user_id': 'jamesbond',
             'personal_data': {
                 'major': 'computer science',
                 'year': 4,
-                'how_they_call_bot': 'buddy',
-                'how_bot_calls_them': 'John',
+                'how_they_call_bot': 'Weikang',
+                'how_bot_calls_them': 'Weikang',
                 'pronouns': 'he'
             }
         }
@@ -50,21 +43,21 @@ class AISDK:
         self.add_new_user("jamesbond", data['personal_data'])
 
     def close(self):
-        self.mongo_client.close()
+        pass
 
     def get_user_data(self, user_id):
-        return self.user_collection.find_one({"_id": user_id})
+        return self.users.get(user_id, None)
 
     def request_worker(self, api_key, user_id, prompt):
         global DEBUG_CALENDAR
         # Start timing
         start_time = time.time()
-
-        openai.api_key = api_key
         llm_client = None
         try:
-            llm_client = openai.OpenAI()
+            llm_client = openai.OpenAI(api_key=api_key)
+            llm_client.models.list()
         except Exception as e:
+            llm_client = None
             return {"error": "API key incorrect or unavailable"}
         finally:
             if llm_client is None:
@@ -96,14 +89,11 @@ class AISDK:
 
     def add_new_user(self, user_id, personal_data):
         try:
-            user = self.user_collection.find_one({"_id": user_id})
+            user = self.get_user_data(user_id)
             if user:
                 return {"error": "User already exists"}
 
-            self.user_collection.insert_one({
-                "_id": user_id,
-                "personal_data": personal_data
-            })
+            self.users[user_id] = personal_data
             return {
                 "user_id": user_id,
                 "personal_data": personal_data
@@ -120,7 +110,7 @@ class AISDK:
         if user_data is None:
             return {"error": "User does not exist"}
 
-        prompt = self.prompt_factory.get_calendar_response_prompt(user_data['personal_data'], chat_history, message,
+        prompt = self.prompt_factory.get_calendar_response_prompt(user_data, chat_history, message,
                                                                   calendar_response)
 
         greenlets = [
@@ -141,7 +131,7 @@ class AISDK:
         if user_data is None:
             return {"error": "User does not exist"}
 
-        prompt = self.prompt_factory.get_input_classification_prompt(user_data['personal_data'], chat_history, message)
+        prompt = self.prompt_factory.get_input_classification_prompt(user_data, chat_history, message)
 
         greenlets = [
             Greenlet.spawn(self.request_worker, api_key, user_id, prompt)

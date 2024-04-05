@@ -9,7 +9,8 @@ import {
   TypingIndicator,
 } from "@chatscope/chat-ui-kit-react";
 import image from "./image/wolf.png";
-import backgroundImage from "./image/1366_front.jpg";
+// import Mes
+// import backgroundImage from "./image/1366_front.jpg";
 
 // "Explain things like you would to a 10 year old learning how to code."
 const systemMessage = {
@@ -40,6 +41,57 @@ function joinUrl(...parts) {
 }
 
 const ChatWindow = (args) => {
+  if (window.API_SERVER_URL == "__API_SERVER_URL__") {
+    window.API_SERVER_URL = "http://127.0.0.1:8000";
+  }
+
+  const [isReadAloudActive, setIsReadAloudActive] = useState(true);
+  const [curReadingLine, setCurReadingLine] = useState(-1);
+
+  const toggleReadAloud = () => {
+    setIsReadAloudActive(!isReadAloudActive);
+
+    if (!isReadAloudActive) {
+      const speech = new SpeechSynthesisUtterance(content);
+      window.speechSynthesis.speak(speech);
+    } else {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  const readMessage = async (message_string, string_index) => {
+    if (curReadingLine == string_index) {
+      return;
+    }
+    setCurReadingLine(string_index);
+    try {
+      const response = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${args.APIKey}`, // Replace with your OpenAI API key
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "tts-1",
+          input: message_string,
+          voice: "alloy",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to convert text to speech");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      const audio = new Audio(url);
+      audio.play();
+    } catch (error) {
+      console.error("Error fetching the audio:", error);
+    }
+  };
+
   const loadGapiAndInitClient = () => {
     // Load the gapi script
     const script = document.createElement("script");
@@ -61,17 +113,6 @@ const ChatWindow = (args) => {
     document.body.appendChild(script);
   };
 
-  const initClient = () => {
-    window.gapi.client
-      .init(config)
-      .then(() => {
-        // Your initialization code here
-      })
-      .catch((error) => {
-        console.error("Error initializing the gapi client:", error);
-      });
-  };
-
   const [messages, setMessages] = useState([
     {
       message: "Hello, I'm ThunderWolfie! Ask me anything!",
@@ -79,11 +120,17 @@ const ChatWindow = (args) => {
       sender: "ChatGPT",
     },
   ]);
+
   const [isTyping, setIsTyping] = useState(false);
-  const [userLoggedIn, setUserLoggedIn] = useState(false);
 
   useEffect(() => {
     loadGapiAndInitClient();
+    if (isReadAloudActive) {
+      readMessage(
+        "Hello, I'm ThunderWolfie! Ask me anything!",
+        messages.length
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -141,6 +188,10 @@ const ChatWindow = (args) => {
 
             const newMessages = [...messages, newMessage];
 
+            if (isReadAloudActive) {
+              readMessage(data.data, messages.length);
+            }
+
             setMessages(newMessages);
           }
         } else {
@@ -172,11 +223,34 @@ const ChatWindow = (args) => {
     setIsTyping(true);
   }
 
+  function sanitizeStringForJson(inputString) {
+    if (!inputString || typeof inputString != "string") {
+      return inputString;
+    }
+
+    // Replace newline characters with a space
+    let singleLineString = inputString.replace(/\n+/g, " ");
+
+    // Escape invalid JSON characters
+    singleLineString = singleLineString
+      .replace(/\\/g, "\\\\") // Escape backslashes
+      .replace(/"/g, '\\"') // Escape double quotes
+      .replace(/\t/g, "\\t") // Escape tabs
+      .replace(/\r/g, "\\r") // Escape carriage returns
+      .replace(/\f/g, "\\f") // Escape formfeeds
+      .replace(/\b/g, "\\b"); // Escape backspaces
+
+    return singleLineString;
+  }
+
   const get_calendar_info = (maxResults, timeMin, orderBy) => {
     if (gapi && gapi.client && gapi.client.calendar) {
       var request = gapi.client.calendar.events.list({
         calendarId: "primary" /* Can be 'primary' or a given calendarid */,
         timeMin: timeMin ? timeMin : new Date().toISOString(),
+        timeMax: new Date(
+          new Date().getTime() + 31 * 24 * 60 * 60 * 1000
+        ).toISOString(),
         showDeleted: false,
         singleEvents: true,
         maxResults: maxResults ? parseInt(maxResults) : 10,
@@ -185,13 +259,19 @@ const ChatWindow = (args) => {
 
       request.execute(async function(resp) {
         var events = resp.items;
-        if (events.length > 0) {
+
+        if (events && events.length > 0) {
           let c_responses = [];
           for (let i = 0; i < events.length; i++) {
+            let desc = sanitizeStringForJson(events[i]["description"]);
+            if (!desc) {
+              continue;
+            }
+
             c_responses.push({
-              summary: events[i].summary,
-              description: events[i].description,
-              location: events[i].location,
+              summary: events[i]["summary"],
+              description: desc || "",
+              location: events[i].location || "",
               start: {
                 dateTime: events[i].start.dateTime,
                 timeZone: events[i].start.timeZone,
@@ -227,6 +307,9 @@ const ChatWindow = (args) => {
             };
 
             const newMessages = [...messages, newMessage];
+            if (isReadAloudActive) {
+              readMessage(data.data, messages.length);
+            }
 
             setMessages(newMessages);
           } else {
@@ -244,6 +327,13 @@ const ChatWindow = (args) => {
         sentTime: "just now",
         sender: "System",
       };
+
+      if (isReadAloudActive) {
+        readMessage(
+          "This question is Calendar-related, please login to your Google account.",
+          messages.length
+        );
+      }
 
       const newMessages = [...messages, newMessage];
 
@@ -289,9 +379,7 @@ const ChatWindow = (args) => {
     <div
       className="App"
       style={{
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundColor: "gray", // Adjust the shade of gray as needed
       }}
     >
       <div className="wrapper">
@@ -309,6 +397,15 @@ const ChatWindow = (args) => {
                 }}
               />
             </div>
+            <button
+              onClick={toggleReadAloud}
+              style={{
+                marginLeft: "10px",
+                color: isReadAloudActive ? "#bbb" : "gray",
+              }}
+            >
+              {isReadAloudActive ? "🔊" : "🔇"}
+            </button>
             <div className="right">
               <div className="name">ThunderWolfie</div>
               <div className="status">Active</div>

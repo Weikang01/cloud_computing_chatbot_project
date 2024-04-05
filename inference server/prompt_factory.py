@@ -224,11 +224,10 @@ RESPONSE:"""
 
         return prompt.format_prompt().to_string()
 
-
-
     @staticmethod
     def clean_json_response(response):
-        response = response.replace("```json", "").replace("```", "").strip()
+        response = response.replace("```json", "").replace("```", "").replace("\"{", "")\
+            .replace("}\"", "").replace(r"\"", "").strip()
         return json.loads(response)
 
 

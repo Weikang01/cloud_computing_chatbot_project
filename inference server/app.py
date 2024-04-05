@@ -15,6 +15,7 @@ app = Flask(__name__)
 
 sdk = AISDK()
 
+#
 
 @app.route('/')
 def test():
@@ -36,12 +37,18 @@ def chat():
     api_key = data['api_key']
 
     # Asynchronous processing of chat message
-    if calendar_response is None or len(calendar_response) == 0:
+    # is_calendar_related_request = False
+    if calendar_response is None:
         response = sdk.async_process_chat_message_without_calendar(api_key, user_id, chat_history, message, timestamp)
     else:
+        # is_calendar_related_request = True
         response = sdk.async_process_chat_with_calendar(api_key, user_id, chat_history, message, timestamp,
                                                         calendar_response)
 
+    # print("-" * 50)
+    # print(data)
+    # print("is_calendar_related_request: " + str(is_calendar_related_request))
+    # print(response)
     return jsonify(response)
 
 
