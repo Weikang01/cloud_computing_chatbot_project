@@ -3,6 +3,7 @@ import express from "express";
 //const express = require('express');
 
 import bodyParser from "body-parser";
+import { google } from "googleapis";
 
 import usersRoutes from "./routes/users.js";
 
@@ -69,9 +70,15 @@ app.post("/chat", (req, res) => {
   };
 
   axios
-    .post(joinUrl(process.env.INFERENCE_SERVER_URL, "chat"), my_req)
+    .post(
+      joinUrl(
+        process.env.INFERENCE_SERVER_URL || "http://127.0.0.1:10299",
+        "chat"
+      ),
+      my_req
+    )
     .then((response) => {
-      if (response.data.response) {
+      if (response.data && response.data.response) {
         res.status(200).json({
           status: "success",
           data: response.data.response,
