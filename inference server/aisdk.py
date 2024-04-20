@@ -80,6 +80,8 @@ class AISDK:
                 ).choices[0].message.content
             except Exception as e:
                 response = "{\"error\": \"OpenAI API unavailable\"}"
+
+        print(response)
         response = self.prompt_factory.clean_json_response(response)
 
         response["user_id"] = user_id
