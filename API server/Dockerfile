@@ -6,6 +6,7 @@ WORKDIR /usr/src/app
 
 # Pass the API server URL as a build argument
 ARG INFERENCE_SERVER_URL
+# docker run -p 8000:8000 -e INFERENCE_SERVER_URL=http:\\localhost:10299 -t project_name:lates 
 
 # Make the build argument available as an environment variable for Vite
 ENV INFERENCE_SERVER_URL=$INFERENCE_SERVER_URL

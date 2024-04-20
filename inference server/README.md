@@ -1,17 +1,36 @@
-# Run and test inference server
+# How to Run This Project
 
-1. install Docker on your local device([Install Docker Desktop on Windows | Docker Docs](https://docs.docker.com/desktop/install/windows-install/))
+To run this project locally, first install all dependencies (ideally within a virtual environment):
 
-2. run Docker
+Create and Activate an Anaconda Environment:
 
-3. Add OpenAI API into your environment variables
+```shell
+conda create -n inference_server_venv python=3.10.7
+conda activate inference_server_venv
+conda install pip
+```
 
-   - `OPENAI_API_KEY` : your openai api key
+install dependencies
 
-4. In your terminal, go to root path of `inference server`
+```shell
+pip install .
+```
 
-   type `docker-compose up --build`
+then use following command to run it:
 
-   this command will build the docker image for the server, as well as its dependencies and start running
+```shell
+python ./app.py
+```
 
-5. to test the server, run `test_cli.py`
+To build this project as a Docker image, use:
+
+```shell
+docker build -t cloud_computing_chatbot_inference_server:latest .
+```
+
+To run this project as a Docker image, use:
+
+```shell
+docker run -p 10299:10299 -t cloud_computing_chatbot_inference_server:latest
+```
+
